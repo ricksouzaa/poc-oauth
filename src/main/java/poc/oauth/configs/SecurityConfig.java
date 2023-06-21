@@ -39,24 +39,24 @@ public class SecurityConfig {
   @Bean
   SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
     return http
-            .csrf(CsrfConfigurer::disable)
-            .authorizeHttpRequests(
-                    auth -> auth.requestMatchers("/auth/**").permitAll()
-                                .anyRequest().authenticated()
-            )
-            .oauth2ResourceServer(oauth -> oauth.jwt(withDefaults()))
-            .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-            .exceptionHandling(exceptions -> exceptions
-                    .authenticationEntryPoint(new BearerTokenAuthenticationEntryPoint())
-                    .accessDeniedHandler(new BearerTokenAccessDeniedHandler())
-            )
-            .headers(
-                    headers -> headers.xssProtection(withDefaults())
-                                      .contentSecurityPolicy(
-                                              config -> config.policyDirectives("script-src 'self'")
-                                      )
-            )
-            .build();
+        .csrf(CsrfConfigurer::disable)
+        .authorizeHttpRequests(
+            auth -> auth.requestMatchers("/auth/**").permitAll()
+                        .anyRequest().authenticated()
+        )
+        .oauth2ResourceServer(oauth -> oauth.jwt(withDefaults()))
+        .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+        .exceptionHandling(exceptions -> exceptions
+            .authenticationEntryPoint(new BearerTokenAuthenticationEntryPoint())
+            .accessDeniedHandler(new BearerTokenAccessDeniedHandler())
+        )
+        .headers(
+            headers -> headers.xssProtection(withDefaults())
+                              .contentSecurityPolicy(
+                                  config -> config.policyDirectives("script-src 'self'")
+                              )
+        )
+        .build();
   }
 
   @Bean
@@ -66,7 +66,7 @@ public class SecurityConfig {
 
   @Bean
   JwtEncoder jwtEncoder() {
-    var jwk = new RSAKey.Builder(this.publicKey).privateKey(this.privateKey).build();
+    var jwk  = new RSAKey.Builder(this.publicKey).privateKey(this.privateKey).build();
     var jwks = new ImmutableJWKSet<>(new JWKSet(jwk));
     return new NimbusJwtEncoder(jwks);
   }
