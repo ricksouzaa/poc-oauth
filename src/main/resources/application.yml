@@ -1,0 +1,10 @@
+app:
+  key:
+    private: classpath:poc-key
+    public: classpath:poc-key.pub
+
+logging:
+  level:
+    org:
+      springframework:
+        security: trace
