@@ -6,6 +6,7 @@ import com.nimbusds.jose.jwk.source.ImmutableJWKSet;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.annotation.Order;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -19,13 +20,23 @@ import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
+import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter;
 import org.springframework.security.oauth2.server.resource.web.BearerTokenAuthenticationEntryPoint;
 import org.springframework.security.oauth2.server.resource.web.access.BearerTokenAccessDeniedHandler;
+import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
+import java.security.KeyPair;
+import java.security.KeyPairGenerator;
 import java.security.interfaces.RSAPrivateKey;
 import java.security.interfaces.RSAPublicKey;
 
+import static org.springframework.http.HttpMethod.GET;
+import static org.springframework.http.HttpMethod.POST;
 import static org.springframework.security.config.Customizer.withDefaults;
 
 @Configuration
@@ -36,10 +47,25 @@ public class SecurityConfig {
   @Value("${app.key.public}")
   private RSAPublicKey  publicKey;
 
+//  private static final KeyPair keyPair = generateRsaKey();
+
   @Bean
+  SecurityFilterChain authSecurityFilterChain(HttpSecurity http) throws Exception {
+    return http
+        .authorizeHttpRequests(
+            auth -> auth.requestMatchers(GET, "/demo").hasAuthority("GET_DEMO")
+                        .requestMatchers(POST, "/demo").hasAuthority("POST_DEMO")
+                        .anyRequest().authenticated()
+        )
+        .build();
+  }
+
+  @Bean
+  @Order(1)
   SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
     return http
         .csrf(CsrfConfigurer::disable)
+        .cors(withDefaults())
         .authorizeHttpRequests(
             auth -> auth.requestMatchers("/auth/**").permitAll()
                         .anyRequest().authenticated()
@@ -60,15 +86,58 @@ public class SecurityConfig {
   }
 
   @Bean
+  public JwtAuthenticationConverter jwtAuthenticationConverter() {
+    JwtGrantedAuthoritiesConverter grantedAuthoritiesConverter = new JwtGrantedAuthoritiesConverter();
+    grantedAuthoritiesConverter.setAuthorityPrefix("");
+    JwtAuthenticationConverter authConverter = new JwtAuthenticationConverter();
+    authConverter.setJwtGrantedAuthoritiesConverter(grantedAuthoritiesConverter);
+    return authConverter;
+  }
+
+  @Bean
+  CorsConfigurationSource corsConfigurationSource() {
+    CorsConfiguration config = new CorsConfiguration();
+    config.setAllowCredentials(true);
+    config.addAllowedOrigin("*");
+    config.addAllowedHeader("*");
+    config.addAllowedMethod("*");
+    config.setMaxAge(1800L);
+    UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+    source.registerCorsConfiguration("/**", config);
+    return source;
+  }
+
+  @Bean
   JwtDecoder jwtDecoder() {
-    return NimbusJwtDecoder.withPublicKey(this.publicKey).build();
+//    RSAPublicKey publicKey = (RSAPublicKey) keyPair.getPublic();
+    NimbusJwtDecoder jwtDecoder = NimbusJwtDecoder.withPublicKey(publicKey).build();
+//    OAuth2TokenValidator<Jwt> withClockSkew =
+//        new DelegatingOAuth2TokenValidator<>(
+//            new JwtTimestampValidator(Duration.ofSeconds(0)));
+//    jwtDecoder.setJwtValidator(withClockSkew);
+    return jwtDecoder;
   }
 
   @Bean
   JwtEncoder jwtEncoder() {
-    var jwk  = new RSAKey.Builder(this.publicKey).privateKey(this.privateKey).build();
-    var jwks = new ImmutableJWKSet<>(new JWKSet(jwk));
-    return new NimbusJwtEncoder(jwks);
+//    var publicKey  = (RSAPublicKey) keyPair.getPublic();
+//    var privateKey = (RSAPrivateKey) keyPair.getPrivate();
+    var rsaKey    = new RSAKey.Builder(publicKey).privateKey(privateKey).build();
+    var jwkSet    = new JWKSet(rsaKey);
+    var jwkSource = new ImmutableJWKSet<>(jwkSet);
+    return new NimbusJwtEncoder(jwkSource);
+  }
+
+  private static KeyPair generateRsaKey() {
+    KeyPair keyPair;
+    try {
+      KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance("RSA");
+      keyPairGenerator.initialize(2048);
+      keyPair = keyPairGenerator.generateKeyPair();
+    } catch (Exception ex) {
+      throw new IllegalStateException(ex);
+    }
+    return keyPair;
   }
 
   @Bean
@@ -83,6 +152,16 @@ public class SecurityConfig {
 
   @Bean
   UserDetailsService userDetailsService() {
-    return username -> User.withUsername("admin").password(passwordEncoder().encode("1234")).build();
+    String pass = passwordEncoder().encode("1234");
+    return new InMemoryUserDetailsManager(
+        User.withUsername("admin")
+            .password(pass)
+            .authorities("GET_DEMO", "POST_DEMO")
+            .build(),
+        User.withUsername("user")
+            .password(pass)
+            .authorities("GET_DEMO")
+            .build()
+    );
   }
 }

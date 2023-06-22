@@ -30,12 +30,12 @@ public class AuthController {
   private final AuthenticationManager authenticationManager;
   private final JwtEncoder            encoder;
 
-  @PostMapping("/signin")
+  @PostMapping("/login")
   public ResponseEntity<?> authenticateUser(@RequestBody LoginRequest loginRequest) {
     Authentication authentication = authenticationManager.authenticate(
         new UsernamePasswordAuthenticationToken(loginRequest.getUsername(), loginRequest.getPassword()));
     String jwt = getToken((UserDetails) authentication.getPrincipal());
-    return ResponseEntity.ok(jwt);
+    return ResponseEntity.ok(TokenResponse.builder().accessToken(jwt).build());
   }
 
   private String getToken(UserDetails user) {
