@@ -46,8 +46,6 @@ public class SecurityConfig {
   @Value("${app.key.public}")
   private RSAPublicKey  publicKey;
 
-//  private static final KeyPair keyPair = generateRsaKey();
-
   @Bean
   SecurityFilterChain authSecurityFilterChain(HttpSecurity http) throws Exception {
     return http
@@ -108,7 +106,6 @@ public class SecurityConfig {
 
   @Bean
   JwtDecoder jwtDecoder() {
-//    RSAPublicKey publicKey = (RSAPublicKey) keyPair.getPublic();
     NimbusJwtDecoder jwtDecoder = NimbusJwtDecoder.withPublicKey(publicKey).build();
 //    OAuth2TokenValidator<Jwt> withClockSkew =
 //        new DelegatingOAuth2TokenValidator<>(
@@ -119,25 +116,11 @@ public class SecurityConfig {
 
   @Bean
   JwtEncoder jwtEncoder() {
-//    var publicKey  = (RSAPublicKey) keyPair.getPublic();
-//    var privateKey = (RSAPrivateKey) keyPair.getPrivate();
     var rsaKey    = new RSAKey.Builder(publicKey).privateKey(privateKey).build();
     var jwkSet    = new JWKSet(rsaKey);
     var jwkSource = new ImmutableJWKSet<>(jwkSet);
     return new NimbusJwtEncoder(jwkSource);
   }
-
-//  private static KeyPair generateRsaKey() {
-//    KeyPair keyPair;
-//    try {
-//      KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance("RSA");
-//      keyPairGenerator.initialize(2048);
-//      keyPair = keyPairGenerator.generateKeyPair();
-//    } catch (Exception ex) {
-//      throw new IllegalStateException(ex);
-//    }
-//    return keyPair;
-//  }
 
   @Bean
   public PasswordEncoder passwordEncoder() {

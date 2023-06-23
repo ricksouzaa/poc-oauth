@@ -1,7 +1,7 @@
 app:
   key:
-    private: classpath:poc-key
-    public: classpath:poc-key.pub
+    private: classpath:certs/poc-key
+    public: classpath:certs/poc-key.pub
 
 logging:
   level:
