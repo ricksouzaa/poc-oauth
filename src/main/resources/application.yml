@@ -1,8 +1,3 @@
-app:
-  key:
-    private: classpath:certs/poc-key
-    public: classpath:certs/poc-key.pub
-
 logging:
   level:
     org:

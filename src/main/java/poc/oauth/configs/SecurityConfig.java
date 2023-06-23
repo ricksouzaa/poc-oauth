@@ -1,12 +1,7 @@
 package poc.oauth.configs;
 
-import com.nimbusds.jose.jwk.JWKSet;
-import com.nimbusds.jose.jwk.RSAKey;
-import com.nimbusds.jose.jwk.source.ImmutableJWKSet;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.core.annotation.Order;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -16,10 +11,6 @@ import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.security.oauth2.jwt.JwtDecoder;
-import org.springframework.security.oauth2.jwt.JwtEncoder;
-import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
-import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter;
 import org.springframework.security.oauth2.server.resource.web.BearerTokenAuthenticationEntryPoint;
@@ -30,9 +21,6 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
-import java.security.interfaces.RSAPrivateKey;
-import java.security.interfaces.RSAPublicKey;
-
 import static java.time.Duration.ofMinutes;
 import static org.springframework.http.HttpMethod.GET;
 import static org.springframework.http.HttpMethod.POST;
@@ -41,13 +29,10 @@ import static org.springframework.security.config.Customizer.withDefaults;
 @Configuration
 public class SecurityConfig {
 
-  @Value("${app.key.private}")
-  private RSAPrivateKey privateKey;
-  @Value("${app.key.public}")
-  private RSAPublicKey  publicKey;
 
   @Bean
-  SecurityFilterChain authSecurityFilterChain(HttpSecurity http) throws Exception {
+  SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    setupDefaultConfiguration(http);
     return http
         .authorizeHttpRequests(
             auth -> auth.requestMatchers(GET, "/demo").hasAuthority("GET_DEMO")
@@ -57,16 +42,10 @@ public class SecurityConfig {
         .build();
   }
 
-  @Bean
-  @Order(1)
-  SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-    return http
-        .csrf(CsrfConfigurer::disable)
+  private void setupDefaultConfiguration(final HttpSecurity http) throws Exception {
+    http.csrf(CsrfConfigurer::disable)
         .cors(withDefaults())
-        .authorizeHttpRequests(
-            auth -> auth.requestMatchers("/auth/**").permitAll()
-                        .anyRequest().authenticated()
-        )
+        .authorizeHttpRequests(auth -> auth.requestMatchers("/auth/**").permitAll())
         .oauth2ResourceServer(oauth -> oauth.jwt(withDefaults()))
         .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
         .exceptionHandling(exceptions -> exceptions
@@ -78,8 +57,7 @@ public class SecurityConfig {
                               .contentSecurityPolicy(
                                   config -> config.policyDirectives("script-src 'self'")
                               )
-        )
-        .build();
+        );
   }
 
   @Bean
@@ -102,24 +80,6 @@ public class SecurityConfig {
     UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
     source.registerCorsConfiguration("/**", config);
     return source;
-  }
-
-  @Bean
-  JwtDecoder jwtDecoder() {
-    NimbusJwtDecoder jwtDecoder = NimbusJwtDecoder.withPublicKey(publicKey).build();
-//    OAuth2TokenValidator<Jwt> withClockSkew =
-//        new DelegatingOAuth2TokenValidator<>(
-//            new JwtTimestampValidator(Duration.ofSeconds(0)));
-//    jwtDecoder.setJwtValidator(withClockSkew);
-    return jwtDecoder;
-  }
-
-  @Bean
-  JwtEncoder jwtEncoder() {
-    var rsaKey    = new RSAKey.Builder(publicKey).privateKey(privateKey).build();
-    var jwkSet    = new JWKSet(rsaKey);
-    var jwkSource = new ImmutableJWKSet<>(jwkSet);
-    return new NimbusJwtEncoder(jwkSource);
   }
 
   @Bean
